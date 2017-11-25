@@ -1,5 +1,5 @@
 # cdiscount-image-classification
-All codes for cdiscount image classification.
+All codes for cdiscount image [classification](https://www.kaggle.com/c/cdiscount-image-classification-challenge).
 
 ### How to train
 ```
@@ -21,3 +21,4 @@ python main.py
 * train another model  (resnet 101 or resnet152, but the later seems to work better)  for results ensembling.
 * split a fraction (about one tenth) of training data for fast experiments
 * maybe we can improve the efficiency of data loading by writing the location and length of all training images into a csv file, so that we can avoid to loading all data information at every beginning of training. 
+* add some augmentation functions, at least including image reverse.
