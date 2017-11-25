@@ -1,6 +1,8 @@
 # cdiscount-image-classification
 All codes for cdiscount image [classification](https://www.kaggle.com/c/cdiscount-image-classification-challenge).
 
+Data visualization and analysis: [site](https://www.kaggle.com/vfdev5/data-visualization-and-analysis)
+
 ### How to train
 ```
 python main.py
