@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 from torch.autograd import Variable
+from utils import get_state_dict
 from label_id_dict import label_to_category_id
 
 
@@ -152,11 +153,7 @@ class SEInception3(nn.Module):
         return x
 
     def load_pretrained_model(self, pretrained_model_file):
-        try:
-            pretrain_state_dict = torch.load(pretrained_model_file)
-        except AssertionError:
-            pretrain_state_dict = torch.load(pretrained_model_file, map_location=lambda storage, location: storage)
-
+        pretrain_state_dict = get_state_dict(pretrained_model_file)
         state_dict = self.state_dict()
         keys = list(state_dict.keys())
         for key in keys:
@@ -165,7 +162,6 @@ class SEInception3(nn.Module):
             except KeyError:
                 print("KeyError: {} dosen't lie in pretrain state dict".format(key))
                 continue
-
         self.load_state_dict(state_dict)
         pass
 
@@ -235,9 +231,6 @@ class InceptionB(nn.Module):
 
         outputs = [branch3x3, branch3x3dbl, branch_pool]
         return torch.cat(outputs, 1)
-
-    def __call__(self, x):
-        return self.forward(x)
 
 
 class InceptionC(nn.Module):

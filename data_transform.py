@@ -27,16 +27,15 @@ def scale(img):
 def image_to_tensor(image):
 
     mean = [0.485, 0.456, 0.406]
-    std  = [0.229, 0.224, 0.225]
+    std = [0.229, 0.224, 0.225]
 
-    image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = image.transpose((2, 0, 1))
     tensor = torch.from_numpy(image).float().div(255)
 
     tensor[0] = (tensor[0] - mean[0]) / std[0]
     tensor[1] = (tensor[1] - mean[1]) / std[1]
     tensor[2] = (tensor[2] - mean[2]) / std[2]
-
     return tensor
 
 
@@ -158,7 +157,7 @@ def random_crop_scale(image, scale_limit=(1/1.2, 1.2), size=[-1,-1], u=0.5):
         box0 = box0.astype(np.float32)
         box1 = box1.astype(np.float32)
         mat = cv2.getPerspectiveTransform(box1,box0)
-        image = cv2.warpPerspective(image, mat, (sw, sh),flags=cv2.INTER_LINEAR, # cv2.BORDER_REFLECT_101
+        image = cv2.warpPerspective(image, mat, (sw, sh),flags=cv2.INTER_LINEAR,  # cv2.BORDER_REFLECT_101
                                     borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0,))
         # cv2.BORDER_CONSTANT, borderValue = (0, 0, 0))  # cv2.BORDER_REFLECT_10
     return image
@@ -218,7 +217,7 @@ def random_horizontal_flip(image, u=0.5):
     return image
 
 
-def train_augment(image):
+def train_augment(image):  # used for training
     image = random_resize(image, scale_x_limits=[0.9, 1.1], scale_y_limits=[0.9, 1.1], u=0.5)
     image = random_crop(image, size=(160, 160), u=0.5)
     image = random_horizontal_flip(image, u=0.5)
@@ -226,8 +225,8 @@ def train_augment(image):
     return tensor
 
 
-def valid_augment(image):
-    image = fix_center_crop(image, size=(160,160))
+def valid_augment(image):  # used for validation
+    image = fix_center_crop(image, size=(160, 160))
     tensor = image_to_tensor(image)
     return tensor
 

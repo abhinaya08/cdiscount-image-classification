@@ -7,8 +7,9 @@ from torch.autograd import Variable
 class Trainer(object):
     cuda = torch.cuda.is_available()
 
-    def __init__(self, model, optimizer, loss_f, batch_size, save_freq=1, print_freq=10, val_freq=500):
-        self.model = model
+    def __init__(self, model, optimizer, loss_f, batch_size, distrit=False, save_freq=1, print_freq=10, val_freq=500):
+        self.distrit = distrit
+        self.model = model.module if self.distrit else model
         if self.cuda:
             model.cuda()
         self.optimizer = optimizer
@@ -33,7 +34,6 @@ class Trainer(object):
         formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%d %b %H:%M:%S')
         console.setFormatter(formatter)
         logging.getLogger('').addHandler(console)
-
 
     def _loop(self, data_loader, epoch, is_train=True):
         loop_loss = []
@@ -87,9 +87,9 @@ class Trainer(object):
 
     def save(self, epoch, test_acc):
         prefix = "epoch-{}".format(epoch)
-        model_name = prefix + "-acc-{:.2f}".format(test_acc) + ".pth"
+        model_name = prefix + "-acc-{:.4f}".format(test_acc) + "-model.pth"
         torch.save(self.model.state_dict(),
                    os.path.join(self.save_dir, model_name))
         torch.save(self.optimizer.state_dict(),
-                   os.path.join(self.save_dir, prefix + ".pth"))
-        logging.debug(">>>[ save] {:d} th".format(int(1 + epoch // self.save_freq)) + '\n')
+                   os.path.join(self.save_dir, prefix + "-opt.pth"))
+        logging.debug(">>>[ save] {:d} th".format(int(epoch // self.save_freq)) + '\n')

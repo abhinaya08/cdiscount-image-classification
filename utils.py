@@ -1,10 +1,13 @@
+import os
 import cv2
 import bson
+import torch
 import struct
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from bisect import bisect_right
+from collections import defaultdict
 from data_transform import image_to_tensor
 from torch.optim import Optimizer
 from torchvision import transforms as transf
@@ -12,6 +15,9 @@ from torch.utils.data import Dataset, DataLoader
 from label_id_dict import label_to_category_id, category_id_to_label
 
 
+# ====================================================================================== #
+# get train datas by extracting all entries
+# ====================================================================================== #
 def read_bson(bson_path, num_records, with_categories):
     rows = {}
     imgs_to_choice_num = {1:1, 2:2, 3:6, 4:6}
@@ -92,88 +98,6 @@ def get_choice_set(num_img):
         return tuple4
 
 
-def extract_categories_df(bson_path, num_images=None):
-    img_category = list()
-    item_locs_list = list()
-    items_len_list = list()
-    pic_ind_list = list()
-
-    with open(bson_path, 'rb') as f:
-        data = bson.decode_file_iter(f)
-        last_item_loc = 0
-        for c, d in enumerate(data):
-            loc = f.tell()
-            item_len = loc - last_item_loc
-            category_id = d['category_id']
-
-            for e, pic in enumerate(d['imgs']):
-
-                img_category.append(category_id)
-                item_locs_list.append(last_item_loc)
-                items_len_list.append(item_len)
-                pic_ind_list.append(e)
-
-                if num_images is not None:
-                    if len(img_category) >= num_images:
-                        break
-
-            last_item_loc = loc
-
-            if num_images is not None:
-                if len(img_category) >= num_images:
-                    break
-    f.close()
-    df_dict = {
-        'category': img_category,
-        "img_id": range(len(img_category)),
-        "item_loc": item_locs_list,
-        "item_len": items_len_list,
-        "pic_ind": pic_ind_list
-    }
-    df = pd.DataFrame(df_dict)
-    return df
-
-
-class CdiscountTrain(Dataset):
-    def __init__(self, data_path, dataframe, train_mask, transform):
-        self.data_path = data_path
-        self.dataframe = dataframe
-        self.mask = train_mask
-        self.transform = transform
-
-    def __getitem__(self, index):
-        entry = self.dataframe.iloc[self.mask[index]]
-        category_id, img_id, item_len, item_loc, pic_ind = entry
-        obs = get_obs(self.data_path, item_loc, item_len)
-        byte_str = obs['imgs'][pic_ind]['picture']
-        img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
-        img = self.transform(img)
-        return img, category_id_to_label[category_id]
-
-    def __len__(self):
-        return len(self.mask)
-
-
-class CdiscountTest(Dataset):
-    def __init__(self, data_path, dataframe, val_mask, transform):
-        self.data_path = data_path
-        self.dataframe = dataframe
-        self.mask = val_mask
-        self.transform = transform
-
-    def __getitem__(self, index):
-        entry = self.dataframe.iloc[self.mask[index]]
-        category_id, img_id, item_len, item_loc, pic_ind = entry
-        obs = get_obs(self.data_path, item_loc, item_len)
-        byte_str = obs['imgs'][pic_ind]['picture']
-        img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
-        img = self.transform(img)
-        return img, category_id_to_label[category_id]
-
-    def __len__(self):
-        return len(self.mask)
-
-
 class CdiscountTrainDataset(Dataset):
     def __init__(self, data_path, data_frame, transform):
         self.data_path = data_path
@@ -221,9 +145,10 @@ class CdiscountValDataset(Dataset):
 
 
 class CdiscountTestDataset(Dataset):
-    def __init__(self, data_path, data_frame):
+    def __init__(self, data_path, data_frame, transform=None):
         self.data_path = data_path
         self.data_frame = data_frame
+        self.transform = transform
 
     def __len__(self):
         return self.data_frame.index.values.shape[0]
@@ -236,10 +161,106 @@ class CdiscountTestDataset(Dataset):
         byte_str = obs['imgs'][keep]['picture']
         img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return image_to_tensor(img)
+        img = self.transform(img) if self.transform else image_to_tensor(img)
+        return img
 
 
-# copied from pytorch's master
+# ====================================================================================== #
+# get train datas by extracting all images
+# ====================================================================================== #
+def extract_categories_df(bson_path, num_images=None):
+    if not num_images and os.path.isfile('all_images_categories.cvs'):
+        return pd.read_csv("all_images_categories.cvs")
+    elif num_images and os.path.isfile('{}_images_categories.cvs'.format(num_images)):
+        return pd.read_csv('{}_images_categories.cvs'.format(num_images))
+    img_category = list()
+    item_locs_list = list()
+    items_len_list = list()
+    pic_ind_list = list()
+
+    with open(bson_path, 'rb') as f:
+        data = bson.decode_file_iter(f)
+        last_item_loc = 0
+        for c, d in enumerate(data):
+            loc = f.tell()
+            item_len = loc - last_item_loc
+            category_id = d['category_id']
+
+            for e, pic in enumerate(d['imgs']):
+
+                img_category.append(category_id)
+                item_locs_list.append(last_item_loc)
+                items_len_list.append(item_len)
+                pic_ind_list.append(e)
+
+                if num_images is not None:
+                    if len(img_category) >= num_images:
+                        break
+
+            last_item_loc = loc
+
+            if num_images is not None:
+                if len(img_category) >= num_images:
+                    break
+    f.close()
+    df_dict = {
+        'category': img_category,
+        "img_id": range(len(img_category)),
+        "item_loc": item_locs_list,
+        "item_len": items_len_list,
+        "pic_ind": pic_ind_list
+    }
+    df = pd.DataFrame(df_dict)
+    if not num_images:
+        df.to_csv("all_images_categories.csv", index=False, sep=",")
+    else:
+        df.to_csv("{}_images_categories.csv".format(num_images), index=False, sep=",")
+    return df
+
+
+class CdiscountTrain(Dataset):
+    def __init__(self, data_path, dataframe, train_mask, transform):
+        self.data_path = data_path
+        self.dataframe = dataframe
+        self.mask = train_mask
+        self.transform = transform
+
+    def __getitem__(self, index):
+        entry = self.dataframe.iloc[self.mask[index]]
+        category_id, img_id, item_len, item_loc, pic_ind = entry
+        obs = get_obs(self.data_path, item_loc, item_len)
+        byte_str = obs['imgs'][pic_ind]['picture']
+        img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
+        img = self.transform(img)
+        return img, category_id_to_label[category_id]
+
+    def __len__(self):
+        return len(self.mask)
+
+
+class CdiscountVal(Dataset):
+    def __init__(self, data_path, dataframe, val_mask, transform):
+        self.data_path = data_path
+        self.dataframe = dataframe
+        self.mask = val_mask
+        self.transform = transform
+
+    def __getitem__(self, index):
+        entry = self.dataframe.iloc[self.mask[index]]
+        category_id, img_id, item_len, item_loc, pic_ind = entry
+        obs = get_obs(self.data_path, item_loc, item_len)
+        byte_str = obs['imgs'][pic_ind]['picture']
+        img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
+        img = self.transform(img)
+        return img, category_id_to_label[category_id]
+
+    def __len__(self):
+        return len(self.mask)
+
+
+# ====================================================================================== #
+# learning rate adjustment, copied from pytorch's master
+# ====================================================================================== #
 class _LRScheduler(object):
     def __init__(self, optimizer, last_epoch=-1):
         if not isinstance(optimizer, Optimizer):
@@ -393,6 +414,24 @@ class ReduceLROnPlateau(object):
         else:  # mode == 'max' and epsilon_mode == 'abs':
             self.is_better = lambda a, best: a > best + threshold
             self.mode_worse = -float('Inf')
+
+
+# ====================================================================================== #
+# Other useful functions
+# ====================================================================================== #
+def get_state_dict(file):
+    try:
+        pretrain_state_dict = torch.load(file)
+    except AssertionError:
+        pretrain_state_dict = torch.load(file, map_location=lambda storage, location: storage)
+    return pretrain_state_dict
+
+
+def load_optimizer(optimizer, pretrained_optimizer_file):
+    pretrain_state_dict = get_state_dict(pretrained_optimizer_file)
+    optimizer.load_state_dict(pretrain_state_dict)
+    optimizer.state = defaultdict(dict, optimizer.state)
+    return
 
 
 if __name__ == "__main__":

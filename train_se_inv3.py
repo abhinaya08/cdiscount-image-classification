@@ -62,7 +62,7 @@ def train():
     initial_checkpoint = None
     data_path = "/data/lixiang/train.bson"
     #data_path = "/data/lixiang/train_example.bson"
-    pretrained_model = "epoch-15-acc-0.63.pkl"
+    pretrained_model = "epoch-5-acc-0.67.pth"
 
     logging.basicConfig(level=logging.DEBUG,
                         format='%(message)s%(asctime)s',
@@ -96,7 +96,7 @@ def train():
     iter_smooth = 20
     iter_log = 1000
     iter_valid = 500
-    iter_save = 1
+    iter_save = 1000
 
     optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()),
                           lr=0.05, momentum=0.9, weight_decay=0.0001)
@@ -113,7 +113,7 @@ def train():
                               drop_last=True,
                               num_workers=num_workers)
 
-    valid_dataset = CdiscountTest(data_path, data_frame, val_mask, transform=valid_augment)
+    valid_dataset = CdiscountVal(data_path, data_frame, val_mask, transform=valid_augment)
     valid_loader = DataLoader(valid_dataset,
                               sampler=SequentialSampler(valid_dataset),
                               batch_size=batch_size,
