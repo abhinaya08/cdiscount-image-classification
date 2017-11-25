@@ -22,3 +22,4 @@ python main.py
 * split a fraction (about one tenth) of training data for fast experiments
 * maybe we can improve the efficiency of data loading by writing the location and length of all training images into a csv file, so that we can avoid to loading all data information at every beginning of training. 
 * add some augmentation functions, at least including image reverse.
+* retrain hard sample.
