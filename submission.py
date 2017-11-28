@@ -10,7 +10,7 @@ from se_inception_v3 import *
 cfg = {"image_size": (3, 180, 180),
        "num_classes": 5270,
        "num_test": 1768182,
-       "saved_model": "epoch-5-acc-0.67.pth",
+       "saved_model": "ep-14acc0.6891-model.pth",
        "test_bson_path": '/data/lixiang/test.bson',
        "batch_size": 256,
        "data_worker": 4}
@@ -22,16 +22,7 @@ def submission(cfg):
         net = net.cuda()
 
     print("*-------Begin Loading Saved Models!------*")
-    pretrain_state_dict = get_state_dict('saved_models/' + cfg["saved_model"])
-    state_dict = net.state_dict()
-    keys = list(state_dict.keys())
-    for key in keys:
-        try:
-            state_dict[key] = pretrain_state_dict["module."+key]
-        except KeyError:
-            print("KeyError: {} dosen't lie in pretrain state dict".format(key))
-            continue
-    net.load_state_dict(state_dict)
+    net.load_pretrained_model('saved_models/' + cfg["saved_model"])
     net.eval()
 
     print("*----------Begin Loading Data!-----------*")

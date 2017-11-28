@@ -169,10 +169,13 @@ class CdiscountTestDataset(Dataset):
 # get train datas by extracting all images
 # ====================================================================================== #
 def extract_categories_df(bson_path, num_images=None):
-    if not num_images and os.path.isfile('all_images_categories.cvs'):
-        return pd.read_csv("all_images_categories.cvs")
-    elif num_images and os.path.isfile('{}_images_categories.cvs'.format(num_images)):
-        return pd.read_csv('{}_images_categories.cvs'.format(num_images))
+    if not num_images and os.path.exists("all_images_categories.csv"):
+        print("loading from csv file: all_images_categories.csv")
+        return pd.read_csv("all_images_categories.csv")
+    elif num_images and os.path.exists('{}_images_categories.csv'.format(num_images)):
+        print("loading from csv file: {}_images_categories.csv".format(num_images))
+        return pd.read_csv("{}_images_categories.cvs".format(num_images))
+    print("loading from bson file: {}".format(bson_path))
     img_category = list()
     item_locs_list = list()
     items_len_list = list()
