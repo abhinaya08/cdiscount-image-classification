@@ -4,8 +4,11 @@ All codes for cdiscount image [classification](https://www.kaggle.com/c/cdiscoun
 Data visualization and analysis: [site](https://www.kaggle.com/vfdev5/data-visualization-and-analysis)
 
 ### How to train
+
+First [download](https://drive.google.com/open?id=1kyNIbjDGegRy-wdGKruXo_ssSnhfPms0) the pretrained model and optimizer to the fold **saved_models**. If you want to fast data loading, you should also download the dataframe csv file, named **all_images_categories.csv** and put it along with **main.py**. Next download the training data and remember its absolute path, and then run the following code.
+
 ```
-python main.py
+python main.py --train_bson_path <the absolute path of training data>
 ```
 
 ### How each file function

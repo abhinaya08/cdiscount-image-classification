@@ -1,10 +1,11 @@
 import os
-used_gpu = '1'
+used_gpu = '3'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = used_gpu
 
 from utils import *
 from se_inception_v3 import *
+from data_transform import *
 
 
 cfg = {"image_size": (3, 180, 180),
@@ -27,7 +28,7 @@ def submission(cfg):
 
     print("*----------Begin Loading Data!-----------*")
     data_frame = get_data_frame(cfg['test_bson_path'], cfg['num_test'], False)
-    test_dataset = CdiscountTestDataset(cfg['test_bson_path'], data_frame)
+    test_dataset = CdiscountTestDataset(cfg['test_bson_path'], data_frame, valid_augment)
     test_loader = DataLoader(test_dataset,
                              batch_size=cfg['batch_size'],
                              num_workers=cfg['data_worker'],
@@ -36,7 +37,7 @@ def submission(cfg):
     save_pd = pd.DataFrame()
     save_pd["category_id"] = net.predict(test_loader)
     save_pd["_id"] = data_frame.index
-    save_pd.to_csv("submission3.csv", columns=["_id","category_id"], index=False, sep=",")
+    save_pd.to_csv("submission5.csv", columns=["_id","category_id"], index=False, sep=",")
     print("*------------End Submission!------------*")
 
 

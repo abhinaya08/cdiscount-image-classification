@@ -218,15 +218,16 @@ def random_horizontal_flip(image, u=0.5):
 
 
 def train_augment(image):  # used for training
-    image = random_resize(image, scale_x_limits=[0.9, 1.1], scale_y_limits=[0.9, 1.1], u=0.5)
-    image = random_crop(image, size=(160, 160), u=0.5)
+    # image = random_resize(image, scale_x_limits=[0.9, 1.1], scale_y_limits=[0.9, 1.1], u=0.5)
+    # image = random_crop(image, size=(160, 160), u=0.5)
+    image = random_shift_scale_rotate(image)
     image = random_horizontal_flip(image, u=0.5)
     tensor = image_to_tensor(image)
     return tensor
 
 
 def valid_augment(image):  # used for validation
-    image = fix_center_crop(image, size=(160, 160))
+    # image = fix_center_crop(image, size=(160, 160))
     tensor = image_to_tensor(image)
     return tensor
 

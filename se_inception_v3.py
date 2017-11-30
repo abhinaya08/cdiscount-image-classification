@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.model_zoo as model_zoo
 from tqdm import tqdm
 from torch.autograd import Variable
 from utils import get_state_dict
@@ -152,16 +153,21 @@ class SEInception3(nn.Module):
  
         return x
 
-    def load_pretrained_model(self, pretrained_model_file):
-        pretrain_state_dict = get_state_dict(pretrained_model_file)
-        state_dict = self.state_dict()
-        keys = list(state_dict.keys())
-        for key in keys:
-            try:
-                state_dict[key] = pretrain_state_dict[key]
-            except KeyError:
-                print("KeyError: {} dosen't lie in pretrain state dict".format(key))
-                continue
+    def load_pretrained_model(self, pretrained_model_file=None, skip=[]):
+        if pretrained_model_file:
+            pretrain_state_dict = get_state_dict(pretrained_model_file)
+            state_dict = self.state_dict()
+            keys = list(state_dict.keys())
+            for key in keys:
+                if any(s in key for s in skip):
+                    continue
+                try:
+                    state_dict[key] = pretrain_state_dict[key]
+                except KeyError:
+                    print("KeyError: {} dosen't lie in pretrain state dict".format(key))
+                    continue
+        else:
+            state_dict = model_zoo.load_url('https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth')
         self.load_state_dict(state_dict)
         pass
 
@@ -175,6 +181,9 @@ class SEInception3(nn.Module):
             for i in range(len(category_label)):
                 predicts.append(label_to_category_id[category_label[i]])
         return predicts
+
+    def save(self, file):
+        torch.save(self.state_dict(), file)
 
 
 class InceptionA(nn.Module):
@@ -206,9 +215,6 @@ class InceptionA(nn.Module):
 
         outputs = [branch1x1, branch5x5, branch3x3dbl, branch_pool]
         return torch.cat(outputs, 1)
-
-    def __call__(self, x):
-        return self.forward(x)
 
 
 class InceptionB(nn.Module):

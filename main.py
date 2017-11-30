@@ -23,25 +23,24 @@ def create_config():
 
     # Model Settings
     parser.add_argument('--batch_size', type=int, default=256, help='how many samples in a batch')
-    parser.add_argument('--image_size', type=tuple, default=(3, 224, 224), help='image size as (C, H, W)')
-    parser.add_argument('--saved_model', type=str, default="LB=0.69673_se-inc3_00026000_model.pth",
+    parser.add_argument('--image_size', type=tuple, default=(3, 180, 180), help='image size as (C, H, W)')
+    parser.add_argument('--saved_model', type=str, default="ep-14acc0.6891-model.pth",
                         help='the name of saved model')
-    parser.add_argument('--optimizer_path', type=str, default=None, help='the path of saved optimizer')
+    parser.add_argument('--optimizer_path', type=str, default="ep-14-opt.pth", help='the path of saved optimizer')
 
     # Optimizer Settings
     parser.add_argument('--optimizer', type=str, default='SGD', help='which optimizer to apply')
-    parser.add_argument('--initial_learning_rate', type=float, default=0.05, help='initial learning rate')
+    parser.add_argument('--initial_learning_rate', type=float, default=0.005, help='initial learning rate')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay')
     return parser.parse_args().__dict__
 
 
-num_classes = 5270
 # total = 7069896
 a = "LB=0.69673_se-inc3_00026000_model.pth"
+b = "inception_v3_google-1a9a5a14.pth"
 cuda = torch.cuda.is_available()
 total = 12371293
-# total = 82
 np.random.seed(2333)
 to = np.arange(total)
 to = np.random.permutation(to)
@@ -51,16 +50,18 @@ print("finish mask")
 
 
 def run(cfg):
+    print("use {} gpu".format(used_gpu))
     net = SEInception3(in_shape=cfg["image_size"], num_classes=cfg["num_classes"])
-    if len(used_gpu) > 1 and cuda:
-        net = torch.nn.DataParallel(net, device_ids=[0, 1])
-
     if cfg["saved_model"]:
         print("*-------Begin Loading Saved Models!------*")
-        if len(used_gpu) > 1 and cuda:
-            net.module.load_pretrained_model('saved_models/' + cfg["saved_model"])
-        else:
-            net.load_pretrained_model('saved_models/' + cfg["saved_model"])
+        net.load_pretrained_model('saved_models/' + cfg["saved_model"])
+
+    if len(used_gpu) > 1 and cuda:
+        distri = True
+        net = torch.nn.DataParallel(net)
+    else:
+        distri = False
+    print("whether distributed:", distri)
 
     if cfg['optimizer'] == 'SGD':
         optimizer = SGD(filter(lambda p: p.requires_grad, net.parameters()),
@@ -72,11 +73,12 @@ def run(cfg):
                          weight_decay=cfg['weight_decay'])
 
     if cfg["optimizer_path"]:
-        load_optimizer(optimizer, 'saved_models/' + cfg['optimizer'])
+        print("*-----Begin Loading Saved optimizer!-----*")
+        load_optimizer(optimizer, 'saved_models/' + cfg['optimizer_path'])
 
     loss = F.cross_entropy
-    trainer = Trainer(net, optimizer, loss, cfg['batch_size'], True)
-    lr_step = MultiStepLR(optimizer, [10, 20])
+    trainer = Trainer(net, optimizer, loss, cfg['batch_size'], distri)
+    lr_step = MultiStepLR(optimizer, [10, 20, 30])
     # lr_step = ReduceLROnPlateau(optimizer, 'min', patience=3)
 
     print("*----------Begin Loading Data!-----------*")
@@ -94,6 +96,7 @@ def run(cfg):
                               batch_size=cfg['batch_size'],
                               drop_last=False,
                               num_workers=cfg['data_woker'])
+
 
     print("*------------Begin Training!-------------*")
     trainer.loop(train_loader, valid_loader, lr_step)

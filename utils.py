@@ -437,6 +437,18 @@ def load_optimizer(optimizer, pretrained_optimizer_file):
     return
 
 
+def filtered_params(net, param_list=None):
+    def in_param_list(s):
+        for p in param_list:
+            if s.endswith(p):
+                return True
+        return False
+    # Caution: DataParallel prefixes '.module' to every parameter name
+    params = net.named_parameters() if param_list is None \
+        else (p for p in net.named_parameters() if in_param_list(p[0]) and p[1].requires_grad)
+    return params
+
+
 if __name__ == "__main__":
 
     def test_data():
