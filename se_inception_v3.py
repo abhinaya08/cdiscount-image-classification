@@ -49,13 +49,12 @@ class BasicConv2d(nn.Module):
 class SEInception3(nn.Module):
     use_cuda = torch.cuda.is_available()
 
-    def __init__(self, in_shape=(3, 128, 128), num_classes=1000):
+    def __init__(self,  num_classes=1000):
         super(SEInception3, self).__init__()
-        in_channels, height, width = in_shape
         self.num_classes = num_classes
-        assert(in_channels == 3)
+        self.name = "SEInception3"
 
-        self.Conv2d_1a_3x3 = BasicConv2d(in_channels, 32, kernel_size=3, stride=2)
+        self.Conv2d_1a_3x3 = BasicConv2d(3, 32, kernel_size=3, stride=2)
         self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3)
         self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=1)
         self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
@@ -395,7 +394,7 @@ if __name__ == '__main__':
         x = Variable(inputs)
         y = Variable(labels)
         logits = net.forward(x)
-        loss = F.binary_cross_entropy_with_logits(logits, y)
+        loss = F.cross_entropy(logits, y)
         loss.backward()
         optimizer.step()
 
@@ -404,7 +403,7 @@ if __name__ == '__main__':
         inputs = torch.randn(1, C, H, W)
         inputs = Variable(inputs)
         probs = F.softmax(net.forward(inputs))
-        print(torch.max(probs, dim=1))
+        print(torch.max(probs))
 
     print( '%s: calling main function ... ' % os.path.basename(__file__))
     test_net()

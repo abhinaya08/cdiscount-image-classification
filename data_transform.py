@@ -77,7 +77,7 @@ def fix_multi_crop(image, roi_size=(160, 160)):
 
 def random_resize(image, scale_x_limits=(0.9, 1.1), scale_y_limits=(0.9, 1.1), u=0.5):
     if random.random() < u:
-        height,width=image.shape[0:2]
+        height, width = image.shape[0:2]
 
         scale_x = random.uniform(scale_x_limits[0], scale_x_limits[1])
         if scale_y_limits is not None:
@@ -218,6 +218,7 @@ def random_horizontal_flip(image, u=0.5):
 
 
 def train_augment(image):  # used for training
+    image = fix_resize(image, 224, 224)
     # image = random_resize(image, scale_x_limits=[0.9, 1.1], scale_y_limits=[0.9, 1.1], u=0.5)
     # image = random_crop(image, size=(160, 160), u=0.5)
     image = random_shift_scale_rotate(image)
