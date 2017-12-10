@@ -36,6 +36,8 @@ def submission(cfg):
                              num_workers=cfg['data_worker'],
                              shuffle=False)
 
+
+
     # data_frame = get_data_frame(cfg['test_bson_path'], cfg['num_test'], False)
     # test_dataset = CdiscountTestDataset(cfg['test_bson_path'], data_frame, valid_augment)
     # test_loader = DataLoader(test_dataset,
@@ -44,7 +46,9 @@ def submission(cfg):
     #                          shuffle=False)
 
     save_pd = pd.DataFrame()
-    results_dict = net.predict(test_loader)
+    results_dict = net.predict(test_loader, True)
+
+    # Compute major vote for products with multiple images. If tied, use the 1st one.
     for _id in results_dict:
         voting = results_dict[_id]
         results_dict[_id] = sorted(zip(voting, [voting.count(vote) for vote in voting]),

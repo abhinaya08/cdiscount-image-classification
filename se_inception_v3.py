@@ -190,7 +190,7 @@ class SEInception3(nn.Module):
                 category_label = output.data.max(1)[1]
                 for i in range(len(category_label)):
                     predicts[item_id[i]].append(label_to_category_id[category_label[i]])
-                    return predicts
+        return predicts
 
     def save(self, file):
         torch.save(self.state_dict(), file)
