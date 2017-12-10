@@ -27,6 +27,14 @@ def submission(cfg):
     net.load_pretrained_model('saved_models/' + cfg["saved_model"])
     net.eval()
 
+    try:
+        net = torch.nn.DataParallel(net)
+        distrit = True
+    except:
+        distrit = False
+        print("Unable to use DataParallel")
+        pass
+
     print("*----------Begin Loading Data!-----------*")
     data_frame = extract_categories_df(cfg['test_bson_path'], is_test=True)
     test_dataset = CdiscountTrain(cfg['test_bson_path'], data_frame,
@@ -36,24 +44,18 @@ def submission(cfg):
                              num_workers=cfg['data_worker'],
                              shuffle=False)
 
-    # data_frame = get_data_frame(cfg['test_bson_path'], cfg['num_test'], False)
-    # test_dataset = CdiscountTestDataset(cfg['test_bson_path'], data_frame, valid_augment)
-    # test_loader = DataLoader(test_dataset,
-    #                          batch_size=cfg['batch_size'],
-    #                          num_workers=cfg['data_worker'],
-    #                          shuffle=False)
-
     save_pd = pd.DataFrame()
-    results_dict = net.predict(test_loader, True)
+    if distrit:
+        results_dict = net.module.predict(test_loader, True)
+    else:
+        results_dict = net.predict(test_loader, True)
 
     # Compute major vote for products with multiple images. If tied, use the 1st one.
     for _id in results_dict:
         voting = results_dict[_id]
         results_dict[_id] = sorted(zip(voting, [voting.count(vote) for vote in voting]), key=lambda x: -x[1])[0][0]
-    save_pd["_id"], save_pd["category_id"] = zip(*results_dict)
-
-    # save_pd["category_id"] = net.predict(test_loader)
-    # save_pd["_id"] = data_frame["item_id"]
+    save_pd["_id"], save_pd["category_id"] = zip(*results_dict.items())
+    save_pd.sort_values("_id", inplace=True)
     save_pd.to_csv("submission9.csv", columns=["_id", "category_id"], index=False, sep=",")
     print("*------------End Submission!------------*")
 
