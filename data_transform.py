@@ -1,7 +1,9 @@
-import io
 import cv2
+import torch
+import numpy as np
+import random
+import math
 from sklearn.preprocessing import MinMaxScaler
-from torchvision.transforms import *
 
 
 def is_image_file(filename):
@@ -77,7 +79,7 @@ def fix_multi_crop(image, roi_size=(160, 160)):
 
 def random_resize(image, scale_x_limits=(0.9, 1.1), scale_y_limits=(0.9, 1.1), u=0.5):
     if random.random() < u:
-        height,width=image.shape[0:2]
+        height, width = image.shape[0:2]
 
         scale_x = random.uniform(scale_x_limits[0], scale_x_limits[1])
         if scale_y_limits is not None:
@@ -191,7 +193,7 @@ def random_shift_scale_rotate(image, shift_limit=(-0.0625, 0.0625), scale_limit=
 
         box0 = box0.astype(np.float32)
         box1 = box1.astype(np.float32)
-        mat = cv2.getPerspectiveTransform(box0,box1)
+        mat = cv2.getPerspectiveTransform(box0, box1)
 
         image = cv2.warpPerspective(image, mat, (size[0], size[1]),
                                     flags=cv2.INTER_LINEAR,
@@ -218,6 +220,7 @@ def random_horizontal_flip(image, u=0.5):
 
 
 def train_augment(image):  # used for training
+    image = fix_resize(image, 224, 224)
     # image = random_resize(image, scale_x_limits=[0.9, 1.1], scale_y_limits=[0.9, 1.1], u=0.5)
     # image = random_crop(image, size=(160, 160), u=0.5)
     image = random_shift_scale_rotate(image)
@@ -235,10 +238,9 @@ def valid_augment(image):  # used for validation
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
-    img = mpimg.imread('/home/xiang/discount2017/data/lufei.jpg')
+    img = mpimg.imread('data/lufei.jpg')
 
     plt.figure(0)
     plt.title("Image")
-    print(len(fix_multi_crop(img)))
-    # plt.imshow(fix_multi_crop(img))
+    plt.imshow(random_shift_scale_rotate(img))
     plt.show()

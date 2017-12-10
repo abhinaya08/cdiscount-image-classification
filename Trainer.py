@@ -10,6 +10,7 @@ class Trainer(object):
     def __init__(self, model, optimizer, loss_f, batch_size, distrit=False, save_freq=1, print_freq=10, val_freq=500):
         self.distrit = distrit
         self.model = model
+        self.model_name = self.model.module.name if distrit else self.model.name
         if self.cuda:
             self.model.cuda()
         self.optimizer = optimizer
@@ -63,7 +64,7 @@ class Trainer(object):
         logging.warning(">>>[{: >5s}] loss: {:.2f}/accuracy: {:.2%}".format(mode, sum(loop_loss), sum(correct)))
         return loop_loss, correct
 
-    def train(self, data_loader, epoch, retrain_hard_batch=True):
+    def train(self, data_loader, epoch, retrain_hard_batch):
         self.model.train()
         train_loss, accs = [], []
         average_loss, average_acc = 0, 0
@@ -100,7 +101,6 @@ class Trainer(object):
                     break
         logging.warning(">>>[ Train] total: {} | loss: {:.2f} | accuracy: {:.2%}".format(i, sum(train_loss), sum(accs)))
 
-
     def test(self, data_loader, epoch):
         self.model.eval()
         loss, correct = self._loop(data_loader, epoch, is_train=False)
@@ -111,7 +111,7 @@ class Trainer(object):
         while True:
             ep += 1
             logging.info("epochs: {}".format(ep) + '\n')
-            self.train(train_loader, ep, True)
+            self.train(train_loader, ep, False)
             test_acc = self.test(test_loader, ep)
             if scheduler is not None:
                 scheduler.step(epoch=ep)
@@ -119,7 +119,7 @@ class Trainer(object):
                 self.save(ep, test_acc)
 
     def save(self, epoch, test_acc):
-        prefix = "ep-{}".format(epoch)
+        prefix = self.model_name + "-ep-{}".format(epoch)
         model_name = prefix + "acc{:.4f}".format(test_acc) + "-model.pth"
         if self.distrit:
             self.model.module.save(os.path.join(self.save_dir, model_name))

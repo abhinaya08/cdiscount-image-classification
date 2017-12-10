@@ -16,28 +16,48 @@ cfg = {"image_size": (3, 180, 180),
        "batch_size": 256,
        "data_worker": 4}
 
-
 def submission(cfg):
-    net = SEInception3(in_shape=cfg["image_size"], num_classes=cfg["num_classes"])
+    net = SEInception3(num_classes=cfg["num_classes"])
     if torch.cuda.is_available():
         net = net.cuda()
 
     print("*-------Begin Loading Saved Models!------*")
+    print("loaded model:", cfg["saved_model"])
     net.load_pretrained_model('saved_models/' + cfg["saved_model"])
     net.eval()
 
     print("*----------Begin Loading Data!-----------*")
-    data_frame = get_data_frame(cfg['test_bson_path'], cfg['num_test'], False)
-    test_dataset = CdiscountTestDataset(cfg['test_bson_path'], data_frame, valid_augment)
+    data_frame = extract_categories_df(cfg['test_bson_path'])
+    test_mask = np.arange(cfg['num_test'])
+    test_dataset = CdiscountTrain(cfg['test_bson_path'], data_frame, test_mask,
+                                  transform=valid_augment)
     test_loader = DataLoader(test_dataset,
                              batch_size=cfg['batch_size'],
                              num_workers=cfg['data_worker'],
                              shuffle=False)
 
+
+
+    # data_frame = get_data_frame(cfg['test_bson_path'], cfg['num_test'], False)
+    # test_dataset = CdiscountTestDataset(cfg['test_bson_path'], data_frame, valid_augment)
+    # test_loader = DataLoader(test_dataset,
+    #                          batch_size=cfg['batch_size'],
+    #                          num_workers=cfg['data_worker'],
+    #                          shuffle=False)
+
     save_pd = pd.DataFrame()
-    save_pd["category_id"] = net.predict(test_loader)
-    save_pd["_id"] = data_frame.index
-    save_pd.to_csv("submission5.csv", columns=["_id","category_id"], index=False, sep=",")
+    results_dict = net.predict(test_loader, True)
+
+    # Compute major vote for products with multiple images. If tied, use the 1st one.
+    for _id in results_dict:
+        voting = results_dict[_id]
+        results_dict[_id] = sorted(zip(voting, [voting.count(vote) for vote in voting]),
+                                           key=lambda x: -x[1])[0][0]
+    save_pd["_id"], save_pd["category_id"] = zip(*results_dict)
+
+    # save_pd["category_id"] = net.predict(test_loader)
+    # save_pd["_id"] = data_frame["item_id"]
+    save_pd.to_csv("submission9.csv", columns=["_id", "category_id"], index=False, sep=",")
     print("*------------End Submission!------------*")
 
 
