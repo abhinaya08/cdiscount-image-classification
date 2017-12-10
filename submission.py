@@ -16,6 +16,7 @@ cfg = {"image_size": (3, 180, 180),
        "batch_size": 256,
        "data_worker": 4}
 
+
 def submission(cfg):
     net = SEInception3(num_classes=cfg["num_classes"])
     if torch.cuda.is_available():
@@ -27,16 +28,13 @@ def submission(cfg):
     net.eval()
 
     print("*----------Begin Loading Data!-----------*")
-    data_frame = extract_categories_df(cfg['test_bson_path'])
-    test_mask = np.arange(cfg['num_test'])
-    test_dataset = CdiscountTrain(cfg['test_bson_path'], data_frame, test_mask,
+    data_frame = extract_categories_df(cfg['test_bson_path'], is_test=True)
+    test_dataset = CdiscountTrain(cfg['test_bson_path'], data_frame,
                                   transform=valid_augment)
     test_loader = DataLoader(test_dataset,
                              batch_size=cfg['batch_size'],
                              num_workers=cfg['data_worker'],
                              shuffle=False)
-
-
 
     # data_frame = get_data_frame(cfg['test_bson_path'], cfg['num_test'], False)
     # test_dataset = CdiscountTestDataset(cfg['test_bson_path'], data_frame, valid_augment)
@@ -51,8 +49,7 @@ def submission(cfg):
     # Compute major vote for products with multiple images. If tied, use the 1st one.
     for _id in results_dict:
         voting = results_dict[_id]
-        results_dict[_id] = sorted(zip(voting, [voting.count(vote) for vote in voting]),
-                                           key=lambda x: -x[1])[0][0]
+        results_dict[_id] = sorted(zip(voting, [voting.count(vote) for vote in voting]), key=lambda x: -x[1])[0][0]
     save_pd["_id"], save_pd["category_id"] = zip(*results_dict)
 
     # save_pd["category_id"] = net.predict(test_loader)
