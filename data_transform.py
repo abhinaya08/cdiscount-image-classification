@@ -1,7 +1,9 @@
-import io
 import cv2
+import torch
+import numpy as np
+import random
+import math
 from sklearn.preprocessing import MinMaxScaler
-from torchvision.transforms import *
 
 
 def is_image_file(filename):
@@ -191,7 +193,7 @@ def random_shift_scale_rotate(image, shift_limit=(-0.0625, 0.0625), scale_limit=
 
         box0 = box0.astype(np.float32)
         box1 = box1.astype(np.float32)
-        mat = cv2.getPerspectiveTransform(box0,box1)
+        mat = cv2.getPerspectiveTransform(box0, box1)
 
         image = cv2.warpPerspective(image, mat, (size[0], size[1]),
                                     flags=cv2.INTER_LINEAR,
@@ -236,10 +238,9 @@ def valid_augment(image):  # used for validation
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
-    img = mpimg.imread('/home/xiang/discount2017/data/lufei.jpg')
+    img = mpimg.imread('data/lufei.jpg')
 
     plt.figure(0)
     plt.title("Image")
-    print(len(fix_multi_crop(img)))
-    # plt.imshow(fix_multi_crop(img))
+    plt.imshow(random_shift_scale_rotate(img))
     plt.show()

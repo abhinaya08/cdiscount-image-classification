@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
+from collections import defaultdict
 from tqdm import tqdm
 from torch.autograd import Variable
 from utils import get_state_dict
@@ -170,16 +171,26 @@ class SEInception3(nn.Module):
         self.load_state_dict(state_dict)
         pass
 
-    def predict(self, data_loader):
-        predicts = []
-        for data in tqdm(data_loader):
-            data = data.cuda() if self.use_cuda else data
-            data = Variable(data, volatile=True)
-            output = self.forward(data)
-            category_label = output.data.max(1)[1]
-            for i in range(len(category_label)):
-                predicts.append(label_to_category_id[category_label[i]])
-        return predicts
+    def predict(self, data_loader, vote=False):
+        if not vote:
+            predicts = []
+            for data in tqdm(data_loader):
+                data = data.cuda() if self.use_cuda else data
+                data = Variable(data, volatile=True)
+                output = self.forward(data)
+                category_label = output.data.max(1)[1]
+                for i in range(len(category_label)):
+                    predicts.append(label_to_category_id[category_label[i]])
+        else:
+            predicts = defaultdict(list)
+            for item_id, data in tqdm(data_loader):
+                data = data.cuda() if self.use_cuda else data
+                data = Variable(data, volatile=True)
+                output = self.forward(data)
+                category_label = output.data.max(1)[1]
+                for i in range(len(category_label)):
+                    predicts[item_id[i]].append(label_to_category_id[category_label[i]])
+                    return predicts
 
     def save(self, file):
         torch.save(self.state_dict(), file)

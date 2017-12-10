@@ -23,6 +23,7 @@ def read_bson(bson_path, num_records, with_categories):
     imgs_to_choice_num = {1:1, 2:2, 3:6, 4:6}
     with open(bson_path, "rb") as f, tqdm(total=num_records) as pbar:
         offset = 0
+
         records_read = 0
         while True:
             item_length_bytes = f.read(4)
@@ -168,18 +169,26 @@ class CdiscountTestDataset(Dataset):
 # ====================================================================================== #
 # get train datas by extracting all images
 # ====================================================================================== #
-def extract_categories_df(bson_path, num_images=None):
-    if not num_images and os.path.exists("all_images_categories.csv"):
-        print("loading from csv file: all_images_categories.csv")
-        return pd.read_csv("all_images_categories.csv")
-    elif num_images and os.path.exists('{}_images_categories.csv'.format(num_images)):
-        print("loading from csv file: {}_images_categories.csv".format(num_images))
-        return pd.read_csv("{}_images_categories.cvs".format(num_images))
+def extract_categories_df(bson_path, num_images=None, is_test=False):
+    if not is_test:
+        if not num_images and os.path.exists("all_images_categories.csv"):
+            print("loading from csv file: all_images_categories.csv")
+            return pd.read_csv("all_images_categories.csv")
+        elif num_images and os.path.exists('{}_images_categories.csv'.format(num_images)):
+            print("loading from csv file: {}_images_categories.csv".format(num_images))
+            return pd.read_csv("{}_images_categories.cvs".format(num_images))
+    else:
+        if os.path.exists("test_images_categories.csv"):
+            print("loading from csv file: test_images_categories.csv")
+            return pd.read_csv("test_images_categories.csv")
     print("loading from bson file: {}".format(bson_path))
-    img_category = list()
+
+    if not is_test:
+        img_category = list()
     item_locs_list = list()
     items_len_list = list()
     pic_ind_list = list()
+    item_id_list = list()
 
     with open(bson_path, 'rb') as f:
         data = bson.decode_file_iter(f)
@@ -187,37 +196,47 @@ def extract_categories_df(bson_path, num_images=None):
         for c, d in enumerate(data):
             loc = f.tell()
             item_len = loc - last_item_loc
-            category_id = d['category_id']
+            if not is_test:
+                category_id = d['category_id']
 
             for e, pic in enumerate(d['imgs']):
-
-                img_category.append(category_id)
+                if not is_test:
+                    img_category.append(category_id)
+                item_id_list.append(d["_id"])
                 item_locs_list.append(last_item_loc)
                 items_len_list.append(item_len)
                 pic_ind_list.append(e)
 
                 if num_images is not None:
-                    if len(img_category) >= num_images:
+                    if len(pic_ind_list) >= num_images:
                         break
 
             last_item_loc = loc
 
             if num_images is not None:
-                if len(img_category) >= num_images:
+                if len(pic_ind_list) >= num_images:
                     break
     f.close()
+
     df_dict = {
-        'category': img_category,
-        "img_id": range(len(img_category)),
+        "item_id": item_id_list,
         "item_loc": item_locs_list,
         "item_len": items_len_list,
         "pic_ind": pic_ind_list
     }
+    if not is_test:
+        df_dict["category"] = img_category
     df = pd.DataFrame(df_dict)
-    if not num_images:
-        df.to_csv("all_images_categories.csv", index=False, sep=",")
+
+    if not is_test:
+        if not num_images:
+            prefix = "all"
+        else:
+            prefix = str(num_images)
     else:
-        df.to_csv("{}_images_categories.csv".format(num_images), index=False, sep=",")
+        prefix = "test"
+
+    df.to_csv(prefix + "_images_categories.csv", index=False, sep=",")
     return df
 
 
@@ -230,7 +249,7 @@ class CdiscountTrain(Dataset):
 
     def __getitem__(self, index):
         entry = self.dataframe.iloc[self.mask[index]]
-        category_id, img_id, item_len, item_loc, pic_ind = entry
+        category_id, item_id, item_len, item_loc, pic_ind = entry
         obs = get_obs(self.data_path, item_loc, item_len)
         byte_str = obs['imgs'][pic_ind]['picture']
         img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -250,7 +269,7 @@ class CdiscountVal(Dataset):
 
     def __getitem__(self, index):
         entry = self.dataframe.iloc[self.mask[index]]
-        category_id, img_id, item_len, item_loc, pic_ind = entry
+        category_id, item_id, item_len, item_loc, pic_ind, category_id = entry
         obs = get_obs(self.data_path, item_loc, item_len)
         byte_str = obs['imgs'][pic_ind]['picture']
         img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -259,6 +278,25 @@ class CdiscountVal(Dataset):
 
     def __len__(self):
         return len(self.mask)
+
+
+class CdiscountTest(Dataset):
+    def __init__(self, data_path, dataframe, transform):
+        self.data_path = data_path
+        self.dataframe = dataframe
+        self.transform = transform
+
+    def __getitem__(self, index):
+        entry = self.dataframe.iloc[index]
+        item_id, item_len, item_loc, pic_ind = entry
+        obs = get_obs(self.data_path, item_loc, item_len)
+        byte_str = obs['imgs'][pic_ind]['picture']
+        img = cv2.imdecode(np.fromstring(byte_str, dtype=np.uint8), cv2.IMREAD_COLOR)
+        img = self.transform(img)
+        return item_id, img
+
+    def __len__(self):
+        return len(self.dataframe)
 
 
 # ====================================================================================== #
