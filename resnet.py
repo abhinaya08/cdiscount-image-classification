@@ -7,6 +7,7 @@ from tqdm import tqdm
 from utils import get_state_dict
 from label_id_dict import label_to_category_id
 from torch.autograd import Variable
+from collections import defaultdict
 
 
 model_urls = {
@@ -168,15 +169,25 @@ class ResNet(nn.Module):
         self.load_state_dict(state_dict)
         pass
 
-    def predict(self, data_loader):
-        predicts = []
-        for data in tqdm(data_loader):
-            data = data.cuda() if self.use_cuda else data
-            data = Variable(data, volatile=True)
-            output = self.forward(data)
-            category_label = output.data.max(1)[1]
-            for i in range(len(category_label)):
-                predicts.append(label_to_category_id[category_label[i]])
+    def predict(self, data_loader, vote=False):
+        if not vote:
+            predicts = []
+            for data in tqdm(data_loader):
+                data = data.cuda() if self.use_cuda else data
+                data = Variable(data, volatile=True)
+                output = self.forward(data)
+                category_label = output.data.max(1)[1]
+                for i in range(len(category_label)):
+                    predicts.append(label_to_category_id[category_label[i]])
+        else:
+            predicts = defaultdict(list)
+            for item_id, data in tqdm(data_loader):
+                data = data.cuda() if self.use_cuda else data
+                data = Variable(data, volatile=True)
+                output = self.forward(data)
+                category_label = output.data.max(1)[1]
+                for i in range(len(category_label)):
+                    predicts[item_id[i]].append(label_to_category_id[category_label[i]])
         return predicts
 
     def save(self, file):
