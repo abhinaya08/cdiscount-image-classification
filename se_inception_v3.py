@@ -388,7 +388,7 @@ if __name__ == '__main__':
         labels = torch.randn(batch_size, num_classes)
         in_shape = inputs.size()[1:]
 
-        net = SEInception3(in_shape=in_shape, num_classes=num_classes)
+        net = SEInception3(num_classes=num_classes)
         net.load_pretrained_model(
             'saved_models/inception_v3_google-1a9a5a14.pth',
             skip=['fc.weight', 'fc.bias']

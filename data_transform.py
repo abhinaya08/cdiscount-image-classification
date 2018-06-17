@@ -123,7 +123,7 @@ def fix_center_crop(image, size=(160, 160)):
     return image
 
 
-def random_crop_scale(image, scale_limit=(1/1.2, 1.2), size=[-1,-1], u=0.5):
+def random_crop_scale(image, scale_limit=(1/1.2, 1.2), size=[-1, -1], u=0.5):
     if random.random() < u:
         image = image.copy()
 
